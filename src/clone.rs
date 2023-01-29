@@ -84,6 +84,7 @@ mod impls {
     };
 
     use super::PureClone;
+    use super::super::cell::Cell;
 
     macro_rules! impl_pure_clone {
         ($($t:ty)*) => {
@@ -136,6 +137,7 @@ mod impls {
         Option<T>
         Result<T, E>
         Vec<T>
+        Cell<T>
     }
 
     impl_pure_clone_tuples! {

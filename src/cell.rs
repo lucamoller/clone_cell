@@ -16,7 +16,7 @@ use core::{
     cmp::Ordering,
     fmt,
     fmt::{Debug, Formatter},
-    mem, ptr,
+    mem, ops, ptr,
 };
 
 use crate::clone::PureClone;
@@ -165,8 +165,15 @@ impl<T> Cell<T> {
         unsafe { (*self.value.get()).pure_clone() }
     }
 
-    // TODO:
-    // pub fn update
+    pub fn update<F>(&self, f: F)
+    where
+        T: PureClone,
+        F: FnOnce(T) -> T,
+    {
+        let old = self.get();
+        let new = f(old);
+        self.set(new);
+    }
 
     /// Takes the value of the `Cell`, leaving a `Default::default()` in its place.
     ///
@@ -185,6 +192,13 @@ impl<T> Cell<T> {
         T: Default,
     {
         self.replace(Default::default())
+    }
+
+    pub fn mul_assign<U>(&self, other: U)
+    where
+        T: ops::Mul<U, Output = T> + PureClone,
+    {
+        self.update(|x| x * other);
     }
 }
 
@@ -354,3 +368,47 @@ where
         self.get().cmp(&other.get())
     }
 }
+
+impl<T> PartialEq<T> for Cell<T>
+where
+    T: PureClone + PartialEq,
+{
+    #[inline]
+    fn eq(&self, rhs: &T) -> bool {
+        self.get().eq(rhs)
+    }
+}
+
+impl<T> PartialOrd<T> for Cell<T>
+where
+    T: PureClone + PartialOrd + PartialEq,
+{
+    #[inline]
+    fn partial_cmp(&self, rhs: &T) -> Option<Ordering> {
+       self.get().partial_cmp(rhs)
+    }
+}
+
+impl<T, U> ops::Mul<U> for &Cell<T>
+where
+    T: ops::Mul<U, Output = T> + PureClone,
+{
+    type Output = T;
+
+    fn mul(self, rhs: U) -> T {
+        self.get() * rhs
+    }
+}
+
+// Todo make a macro to generate these
+// impl<U, T> ops::Mul<&Cell<T>> for U
+// where
+//     U: ops::Mul<T, Output = U>,
+//     T: PureClone,
+// {
+//     type Output = U;
+
+//     fn mul(self, rhs: &Cell<T>) -> U {
+//         self * rhs.get()
+//     }
+// }
